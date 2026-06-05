@@ -1,0 +1,25 @@
+# training output: checkpoints, videos, logs (large, generated)
+runs/
+*.pt
+*.ckpt
+wandb/
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+.pytest_cache/
+build/
+dist/
+
+# env / editor / os
+.venv/
+venv/
+.env
+.vscode/
+.idea/
+.DS_Store
+
+# allow demo assets through despite the *.mp4/gif being generated
+!assets/
