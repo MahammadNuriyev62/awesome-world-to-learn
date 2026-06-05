@@ -158,7 +158,9 @@ PAGE_TEMPLATE = r"""<!doctype html>
     <span class="keys">W A S D</span> or <span class="keys">arrow keys</span> to move &nbsp;|&nbsp;
     <span class="keys">0-9</span> action &nbsp;|&nbsp; <span class="keys">R</span> reset
   </div>
-  <button onclick="doReset()">reset (R)</button>
+  <!-- tabindex/-1 + mousedown-preventDefault so the button never takes keyboard
+       focus; otherwise Space would activate it and reset instead of braking -->
+  <button type="button" tabindex="-1" onmousedown="event.preventDefault()" onclick="doReset()">reset (R)</button>
 <script>
 const INFO = __INFO__;
 document.getElementById('title').innerHTML =
@@ -190,6 +192,7 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => {
   const k = e.key.length===1 ? e.key.toLowerCase() : e.key;
+  if (DIR[k]!==undefined || k===' ' || (k>='0'&&k<='9')) e.preventDefault();
   pressed.delete(k); sendIntent();
 });
 function doReset(){ fetch('/reset', {method:'POST'}).catch(()=>{}); }
