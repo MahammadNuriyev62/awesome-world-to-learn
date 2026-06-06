@@ -37,7 +37,6 @@ def parse_args():
     p = argparse.ArgumentParser(description="Online diffusion world-model trainer")
     p.add_argument("--game", required=True, help="name | gym:ENV | ./file.py | mod:Class")
     p.add_argument("--steps", dest="total_steps", type=int, default=None, help="total gradient steps")
-    p.add_argument("--objective", choices=["edm", "regression"], default=None)
     p.add_argument("--resolution", type=int, default=None)
     p.add_argument("--frame-stack", dest="frame_stack", type=int, default=None)
     p.add_argument("--batch-size", dest="batch_size", type=int, default=None)
@@ -111,7 +110,7 @@ def train(args):
     scaler = torch.amp.GradScaler("cuda", enabled=use_fp16_scaler)
 
     nparams = sum(p.numel() for p in model.parameters()) / 1e6
-    print(f"objective={cfg.objective}  params={nparams:.1f}M  device={device}  amp={cfg.amp_dtype}")
+    print(f"diffusion=EDM  params={nparams:.1f}M  device={device}  amp={cfg.amp_dtype}")
     with open(os.path.join(cfg.run_dir, "config.json"), "w") as f:
         json.dump(full, f, indent=2, default=str)
 
@@ -201,7 +200,7 @@ def train(args):
     train_start = None  # wall-clock when the first grad step runs (excludes warmup)
     append_jsonl(os.path.join(cfg.run_dir, "metrics.jsonl"),
                  {"phase": "start", "t": round(t0, 1), "total_steps": cfg.total_steps,
-                  "resolution": cfg.resolution, "frame_stack": cfg.frame_stack, "objective": cfg.objective})
+                  "resolution": cfg.resolution, "frame_stack": cfg.frame_stack})
     pbar = tqdm(total=cfg.total_steps, desc="train", dynamic_ncols=True)
     while gstep < cfg.total_steps:
         env_step()

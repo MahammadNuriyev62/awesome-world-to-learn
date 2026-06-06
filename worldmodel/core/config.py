@@ -45,9 +45,6 @@ class Config:
     dropout: float = 0.0
     cond_embed_dim: int = 256
 
-    # --- objective: "edm" (diffusion) or "regression" (MSE baseline) ---
-    objective: str = "edm"
-
     # --- EDM diffusion ---
     sigma_data: float = 0.5
     sigma_min: float = 0.002

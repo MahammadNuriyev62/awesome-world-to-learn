@@ -27,9 +27,6 @@ python -m worldmodel.core.train --game ball
 # fast iteration at 32x32
 python -m worldmodel.core.train --game ball --resolution 32 --steps 20000
 
-# the deterministic MSE baseline (milestone 1) instead of diffusion
-python -m worldmodel.core.train --game ball --objective regression
-
 # any gymnasium env through the adapter (proves the core is not ball-specific)
 python -m worldmodel.core.train --game gym:Pendulum-v1        # continuous action
 python -m worldmodel.core.train --game gym:CartPole-v1        # discrete action
@@ -107,7 +104,6 @@ worldmodel/
 | warmup frames | 5000 | `--warmup` |
 | batch size | 64 | `--batch-size` |
 | train ratio | 2 grad steps / env step | `--train-ratio` |
-| objective | `edm` (or `regression`) | `--objective` |
 | total steps | 100k | `--steps` |
 | eval every | 5000 | `--eval-every` |
 
@@ -116,10 +112,12 @@ Any config field can also be set with `--set key=value` (repeatable).
 ## Milestones
 
 0. Contract, registry, ball game, actor, episode-aware buffer + random-play video.
-1. Deterministic regression U-Net (MSE) baseline — fast one-step signal.
-2. EDM-style diffusion objective; one-step next-frame generation.
-3. Generality: a gymnasium env through `GymGame`, `train.py` unchanged.
-4. Autoregressive rollout eval + an optional short rollout / scheduled-sampling
+1. EDM diffusion world model: Karras preconditioning + denoising loss, Heun/DDIM
+   sampling. (An MSE regression baseline was used early on to validate the
+   pipeline, then removed — diffusion is the standard for this and avoids
+   regression-to-the-mean blur of fine detail.)
+2. Generality: a gymnasium env through `GymGame`, `train.py` unchanged.
+3. Autoregressive rollout eval + an optional short rollout / scheduled-sampling
    loss for drift control (`--set rollout_loss_weight=0.3`).
 
 ## Notes / design decisions

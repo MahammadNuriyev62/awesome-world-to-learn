@@ -4,9 +4,10 @@ The U-Net backbone is fixed across games. Only the action-conditioning head
 adapts to the action space: an embedding table for ``Discrete`` and a small MLP
 for ``Box``. The model is built per run from ``obs_shape`` and ``action_space``.
 
-Two objectives share one backbone:
-  - ``regression``: predict the next frame directly (MSE). Milestone 1 baseline.
-  - ``edm``: Karras et al. EDM preconditioning + denoising loss. Milestone 2.
+Training objective is the Karras et al. EDM denoising loss (a diffusion model);
+sampling uses an EDM Heun/DDIM solver. This is the standard, SOTA-style recipe
+for diffusion world models (cf. DIAMOND, GameNGen) and avoids the
+regression-to-the-mean blur of a deterministic MSE predictor.
 
 Tensor conventions (inside the model): images are float in [-1, 1].
   cond:   (B, k, C, H, W)
@@ -224,7 +225,6 @@ class DiffusionWorldModel(nn.Module):
         assert H == W, "model assumes square canonical frames"
         self.C = C
         self.k = config.frame_stack
-        self.objective = config.objective
         emb_dim = config.cond_embed_dim
 
         self.cond_embed = ConditionEmbed(action_space, emb_dim)
@@ -271,13 +271,7 @@ class DiffusionWorldModel(nn.Module):
 
     # ---------------------------------------------------------------- training loss
     def denoise_loss(self, cond, action, target) -> torch.Tensor:
-        if self.objective == "regression":
-            c_noise = torch.zeros(cond.shape[0], device=cond.device)
-            zeros = torch.zeros_like(target)
-            pred = self._net(zeros, cond, action, c_noise)
-            return F.mse_loss(pred, target)
-
-        # EDM denoising loss
+        """EDM denoising loss: noise the target at a random sigma, denoise, weight."""
         B = target.shape[0]
         rnd = torch.randn(B, device=target.device)
         sigma = (rnd * self.p_std + self.p_mean).exp()
@@ -292,15 +286,10 @@ class DiffusionWorldModel(nn.Module):
         """A cheap, differentiable one-step next-frame prediction.
 
         Used only by the optional short-rollout / scheduled-sampling drift loss
-        (milestone 4). For ``regression`` this is the exact predictor; for
-        ``edm`` it is a single denoise step from a moderate-noise sample, an
+        (milestone 4): a single denoise step from a moderate-noise sample, an
         approximation of the full sampler that stays cheap and differentiable.
         """
         B = cond.shape[0]
-        if self.objective == "regression":
-            c_noise = torch.zeros(B, device=cond.device)
-            zeros = torch.zeros(B, self.C, *cond.shape[-2:], device=cond.device)
-            return self._net(zeros, cond, action, c_noise)
         sigma = torch.full((B,), self.sigma_data, device=cond.device)
         x = torch.randn(B, self.C, *cond.shape[-2:], device=cond.device) * self.sigma_data
         return self.edm_denoise(cond, action, x, sigma)
@@ -315,12 +304,7 @@ class DiffusionWorldModel(nn.Module):
 
     @torch.no_grad()
     def sample_frame(self, cond, action) -> torch.Tensor:
-        """Sample one next frame given a conditioning stack and action."""
-        if self.objective == "regression":
-            c_noise = torch.zeros(cond.shape[0], device=cond.device)
-            zeros = torch.zeros(cond.shape[0], self.C, *cond.shape[-2:], device=cond.device)
-            return self._net(zeros, cond, action, c_noise).clamp(-1, 1)
-
+        """Sample one next frame given a conditioning stack and action (EDM solver)."""
         device = cond.device
         B = cond.shape[0]
         sigmas = self._sigma_schedule(self.sampler_steps, device)

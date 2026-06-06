@@ -217,3 +217,8 @@ python -m worldmodel.core.eval --ckpt runs/latest/model.pt --rollout 128
   rendering, WASD/arrow keys), and with `--model CKPT` you can play the trained world
   model itself (its autoregressive "dream"), optionally `--compare` against the real game.
 - AMP defaults to fp16, which is native on the T4 (Turing); bf16 is emulated there.
+- The model is now EDM diffusion only. The milestone-1 MSE regression baseline was
+  used to validate the pipeline early, then removed: a deterministic regressor blurs
+  uncertain fine detail (e.g. a spinning wheel's spokes) toward the mean, which
+  diffusion avoids by sampling a definite frame. Diffusion is the standard for world
+  models (DIAMOND, GameNGen).
